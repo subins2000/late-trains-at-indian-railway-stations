@@ -1,0 +1,128 @@
+<html>
+<body>
+  <div style="margin-bottom: 20px;">
+    <button onclick="filterAtleastThreeTimesWeekly()">Trains running at least 3 times weekly</button>
+  </div>
+  <table id="table">
+    <thead>
+      <th></th>
+      <th>Train number</th>
+      <th>Train name</th>
+      <th>Average delay</th>
+      <th>Source</th>
+      <th>Destination</th>
+      <th>Worst delay</th>
+    </thead>
+    <tbody></tbody>
+  </table>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js" integrity="sha512-v2CJ7UaYy4JwqLDIrZUI/4hqeoQieOmAZNXBeQyjo21dadnwR+8ZaIJVT8EE2iyI61OV8e6M8PP2/4hpQINQ/g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+  <link rel="stylesheet" href="//cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css" />
+  <script>
+    const average = arr => arr.reduce( ( p, c ) => p + c, 0 ) / arr.length;
+    const readableMinutes = minutes => new Date(minutes * 60 * 1000).toISOString().substr(11, 8);
+    const arrayToRows = array => {
+      const rows = $("<tbody></tbody>")
+      array.forEach(entry => {
+        const tr = $("<tr>")
+        entry.forEach(item => {
+          $("<td>").html(item).appendTo(tr)
+        })
+        tr.appendTo(rows)
+      })
+      return rows
+    }
+  </script>
+  <script>
+    let state = {}
+    let dataTable;
+
+    $(document).on('click', '.dt-control', function (e) {
+      let tr = $(this).parents('tr');
+      const trainNumber = $(tr).find("td:nth-child(2)").text()
+
+      const expandedClass = `expanded-${trainNumber}`
+      const expandedElem = $(`.${expandedClass}`)
+      const isExpandedPresent = expandedElem.length !== 0
+  
+      if (isExpandedPresent) {
+        expandedElem.remove()
+      } else {
+        tr.after(
+          arrayToRows(
+            state.trainDelays[trainNumber].map(item => ["", "", item[0], readableMinutes(item[1]), "", "", "", ""])
+          ).find("tr").addClass(expandedClass).parents("tbody").html()
+        )
+      }
+    });
+
+    function makeTable(state) {
+      const trainInfo = {}
+
+      state.trains.forEach(item => {
+        trainInfo[item.number] = item
+      })
+
+      const avgDelays = []
+
+      for (const [trainNumber, delayInfo] of Object.entries(state.trainDelays)) {
+        const delays = delayInfo.map(item => parseInt(item[1]))
+
+        const avgDelay = average(delays)
+        if (isNaN(avgDelay)) continue
+
+        const link = `https://etrain.info/train/${trainInfo[trainNumber].name}-${trainNumber}/schedule`
+
+        avgDelays.push([
+          "<span class='dt-control' style='cursor: pointer'>⬇️</span>",
+          trainNumber,
+          `<a target="_blank" href="${link}">${trainInfo[trainNumber].name}</a>`,
+          readableMinutes(avgDelay),
+          trainInfo[trainNumber].source,
+          trainInfo[trainNumber].destination,
+          `${delayInfo.find(item => item[1] == Math.max(...delays))[0]} - ${readableMinutes(Math.max(...delays))}`
+        ])
+      }
+
+      arrayToRows(avgDelays).find("tr").appendTo("tbody")
+
+      dataTable = new DataTable('#table', {
+        order: [[3, 'desc']],
+        pageLength: 30
+      });
+    }
+
+    function clean() {
+      dataTable.destroy()
+      $("#table tbody").html("")
+    }
+
+    function filterAtleastThreeTimesWeekly() {
+      clean()
+
+      const trainDelays = {}
+      
+      for (const [trainNumber, delayInfo] of Object.entries(state.trainDelays)) {
+        if (delayInfo.length < 10) continue
+        
+        trainDelays[trainNumber] = delayInfo
+      }
+
+      makeTable({
+        ...state,
+        trainDelays
+      })
+    }
+
+    $.get("state.json", function(data) {
+      state = data
+      makeTable(data)
+    })
+  </script>
+  <style>
+    table {
+      border-spacing: 20px 10px;
+    }
+  </style>
+</body>
+</html>
