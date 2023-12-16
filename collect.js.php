@@ -109,7 +109,7 @@ async function fetchDelays() {
   }
 }
 
-function init() {
+function collectorInit() {
   fetchTrainNumbers()
   fetchDelays()
 }
