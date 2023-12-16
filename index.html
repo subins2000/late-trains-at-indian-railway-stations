@@ -1,7 +1,8 @@
 <html>
 <body>
   <div style="margin-bottom: 20px;">
-    <button onclick="filterAtleastThreeTimesWeekly()">Trains running at least 3 times weekly</button>
+    <button onclick="filterAtleastThreeTimesWeekly()">Show only trains running at least 3 times weekly</button>
+    <button onclick="showAllTrains()">Show all trains</button>
   </div>
   <table id="table">
     <thead>
@@ -112,6 +113,11 @@
         ...state,
         trainDelays
       })
+    }
+
+    function showAllTrains() {
+      clean()
+      makeTable(state)
     }
 
     $.get("state.json", function(data) {
